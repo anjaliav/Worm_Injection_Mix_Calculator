@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Injection Mix Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+/* Layout: a single-column instrument panel — setup bar, plasmid rows, then a results ledger. */
+:root{
+  --bg:#F2F5F4; --surface:#FFFFFF; --sunken:#E8EDEC;
+  --ink:#16201F; --ink-2:#4A5A58; --ink-3:#7B8B89;
+  --line:#D5DEDC; --line-2:#C2CECC;
+  --accent:#0E6E6A; --accent-ink:#FFFFFF; --accent-soft:#DCEEEC;
+  --main:#0E6E6A;  --main-soft:#DCEEEC;
+  --marker:#5B4BC4; --marker-soft:#E5E2F8;
+  --carrier:#5E6E6C; --carrier-soft:#E4EAE9;
+  --ok:#17673F; --warn:#8A5A06; --warn-soft:#FBEFD8; --bad:#A32B20; --bad-soft:#FAE4E1;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --serif:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:7px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1514; --surface:#18201F; --sunken:#131A19;
+  --ink:#E6EDEB; --ink-2:#A4B3B1; --ink-3:#768583;
+  --line:#2A3433; --line-2:#3A4746;
+  --accent:#4FC3BA; --accent-ink:#06211F; --accent-soft:#143130;
+  --main:#4FC3BA; --main-soft:#143130;
+  --marker:#A79BF5; --marker-soft:#241F45;
+  --carrier:#9AAAA8; --carrier-soft:#222B2A;
+  --ok:#5CCB8D; --warn:#E3B562; --warn-soft:#352A14; --bad:#F2887B; --bad-soft:#3A1F1C;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1514; --surface:#18201F; --sunken:#131A19;
+  --ink:#E6EDEB; --ink-2:#A4B3B1; --ink-3:#768583;
+  --line:#2A3433; --line-2:#3A4746;
+  --accent:#4FC3BA; --accent-ink:#06211F; --accent-soft:#143130;
+  --main:#4FC3BA; --main-soft:#143130;
+  --marker:#A79BF5; --marker-soft:#241F45;
+  --carrier:#9AAAA8; --carrier-soft:#222B2A;
+  --ok:#5CCB8D; --warn:#E3B562; --warn-soft:#352A14; --bad:#F2887B; --bad-soft:#3A1F1C;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:980px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+
+h1{font-family:var(--serif);font-size:clamp(23px,4.4vw,31px);font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.sub{color:var(--ink-2);margin:5px 0 0;max-width:62ch}
+header{margin-bottom:22px}
+
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 9px}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.panel + .panel{margin-top:16px}
+
+/* setup bar */
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:12px;font-weight:500;color:var(--ink-2)}
+.field .unit{color:var(--ink-3);font-weight:400}
+input,select{font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-2);border-radius:5px;padding:7px 9px;width:100%;min-width:0}
+input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input::placeholder{color:var(--ink-3);opacity:.75}
+
+/* rows */
+.rows{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.row{display:grid;gap:10px;align-items:end;background:var(--surface);
+  border:1px solid var(--line);border-left:3px solid var(--rc,var(--line-2));
+  border-radius:var(--r);padding:12px}
+.row[data-role=main]{--rc:var(--main)}
+.row[data-role=marker]{--rc:var(--marker)}
+.row[data-role=carrier]{--rc:var(--carrier)}
+.row-grid{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1.5fr) minmax(0,1.3fr) 86px 86px;gap:10px;align-items:end}
+.row-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  border-top:1px dashed var(--line);padding-top:9px;margin-top:2px}
+.vol{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px;font-weight:600}
+.vol .lbl{font-family:var(--sans);font-size:12px;font-weight:500;color:var(--ink-2);margin-right:7px}
+.vol.flag{color:var(--warn)}
+.vol.err{color:var(--bad)}
+.row-acts{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+  letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:99px}
+.chip.main{background:var(--main-soft);color:var(--main)}
+.chip.marker{background:var(--marker-soft);color:var(--marker)}
+.chip.carrier{background:var(--carrier-soft);color:var(--carrier)}
+
+button{font-family:inherit;font-size:13px;font-weight:500;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line-2);border-radius:5px;padding:6px 11px;cursor:pointer}
+button:hover{background:var(--sunken)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+button.primary:hover{filter:brightness(1.07)}
+button.quiet{border-color:transparent;color:var(--ink-2);padding:6px 8px}
+button.quiet:hover{color:var(--bad);background:var(--bad-soft)}
+button.tiny{font-size:11.5px;padding:4px 8px}
+
+/* ledger */
+.ledger{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.cellb{background:var(--surface);padding:12px 13px}
+.cellb .k{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.cellb .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:19px;font-weight:600;margin-top:3px}
+.cellb .n{font-size:11.5px;color:var(--ink-3);margin-top:1px}
+.v.ok{color:var(--ok)} .v.warn{color:var(--warn)} .v.bad{color:var(--bad)}
+
+.notes{display:flex;flex-direction:column;gap:7px;margin-top:14px}
+.note{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;padding:9px 11px;border-radius:5px;line-height:1.45}
+.note.warn{background:var(--warn-soft);color:var(--warn)}
+.note.bad{background:var(--bad-soft);color:var(--bad)}
+.note.ok{background:var(--accent-soft);color:var(--accent)}
+.note b{font-weight:600}
+.note .ic{font-family:var(--mono);font-weight:600;flex:none;line-height:1.45}
+
+.bar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.status{font-size:12.5px;color:var(--ink-3);margin-left:auto}
+
+.hint{font-size:12.5px;color:var(--ink-3);margin:9px 0 0}
+.foot{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.foot code{font-family:var(--mono);background:var(--sunken);padding:1px 5px;border-radius:3px;color:var(--ink-2)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (max-width:720px){
+  .row-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .row-grid .f-name{grid-column:1/-1}
+}
+@media (max-width:420px){
+  .row-grid{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Injection Mix Calculator</h1>
+    <p class="sub">Enter each plasmid's stock and final concentration. Volumes are worked out as
+      <b>V1 = C2 x V2 / C1</b>, with water making up the rest of the mix.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="setup-h">
+    <p class="eyebrow" id="setup-h">Mix setup</p>
+    <div class="setup">
+      <div class="field">
+        <label for="f-vol">Mix volume <span class="unit">(uL)</span></label>
+        <input type="number" id="f-vol" min="1" max="500" step="1" value="20">
+      </div>
+      <div class="field">
+        <label for="f-target">Target total DNA <span class="unit">(ng/uL)</span></label>
+        <input type="number" id="f-target" min="1" max="1000" step="5" value="100">
+      </div>
+      <div class="field">
+        <label for="f-count">Number of plasmids</label>
+        <input type="number" id="f-count" min="1" max="12" step="1" value="3">
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="pl-h" style="margin-top:16px">
+    <p class="eyebrow" id="pl-h">Plasmids</p>
+    <div class="rows" id="rows"></div>
+    <div class="bar">
+      <button id="add" type="button">+ Add plasmid</button>
+      <button id="reset" type="button" class="quiet">Clear all</button>
+      <span class="status" id="save-status"></span>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="res-h" style="margin-top:16px">
+    <p class="eyebrow" id="res-h">Mix</p>
+    <div class="ledger">
+      <div class="cellb"><div class="k">Total DNA</div><div class="v" id="o-dna">—</div><div class="n" id="o-dna-n">ng/uL</div></div>
+      <div class="cellb"><div class="k">Plasmid volume</div><div class="v" id="o-pv">—</div><div class="n">uL</div></div>
+      <div class="cellb"><div class="k">Water</div><div class="v" id="o-h2o">—</div><div class="n">uL to add</div></div>
+      <div class="cellb"><div class="k">Final volume</div><div class="v" id="o-tot">—</div><div class="n">uL</div></div>
+    </div>
+    <div class="notes" id="notes"></div>
+    <div class="bar">
+      <button id="copy" type="button" class="primary">Copy table for notes</button>
+      <span class="status" id="copy-status" role="status"></span>
+    </div>
+    <p class="hint">Copies as a tab-separated table, so it pastes into OneNote, Word or Excel as real rows.</p>
+  </section>
+
+  <p class="foot">
+    Roles are labels for your own records: <b>main construct</b>, <b>co-injection marker</b>, <b>carrier</b> (empty vector).
+    Use <code>Fill to target</code> on a carrier to top the mix up to the target total, the way a carrier is normally used.
+    Your mix is saved in this browser automatically, so it is still here when you reopen the file.
+  </p>
+</div>
+
+<script>
+"use strict";
+const ROLES = [
+  {v:"main",    label:"Main construct"},
+  {v:"marker",  label:"Co-injection marker"},
+  {v:"carrier", label:"Carrier (empty vector)"}
+];
+const ROLE_LABEL = Object.fromEntries(ROLES.map(r=>[r.v,r.label]));
+
+let uid = 0;
+let state = {
+  volume: 20,
+  target: 100,
+  rows: [blank("main"), blank("marker"), blank("carrier")]
+};
+function blank(role){ return {id:"r"+(++uid), name:"", plasmid:"", role:role, c1:"", c2:""}; }
+
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+const fmt = (n,d=2) => n==null ? "—" : (Math.round(n*10**d)/10**d).toFixed(d);
+
+/* ---- the calculation ---- */
+function compute(){
+  const V2 = num(state.volume) ?? 0;
+  const out = state.rows.map(r=>{
+    const c1 = num(r.c1), c2 = num(r.c2);
+    let v1 = null, err = null;
+    if(c1!=null && c2!=null && V2>0){
+      if(c1<=0) err = "zero-stock";
+      else if(c2>c1) err = "too-dilute";
+      else v1 = c2*V2/c1;
+    }
+    return {row:r, c1, c2, v1, err};
+  });
+  const dna   = out.reduce((s,o)=> s + (o.c2 ?? 0), 0);
+  const pvol  = out.reduce((s,o)=> s + (o.v1 ?? 0), 0);
+  const water = V2 - pvol;
+  return {V2, target:num(state.target) ?? 0, out, dna, pvol, water};
+}
+
+/* ---- rendering ---- */
+const rowsEl = document.getElementById("rows");
+
+function render(){
+  const c = compute();
+  rowsEl.textContent = "";
+  c.out.forEach((o,i)=>{
+    const r = o.row;
+    const el = document.createElement("div");
+    el.className = "row"; el.dataset.role = r.role; el.dataset.id = r.id;
+
+    const g = document.createElement("div");
+    g.className = "row-grid";
+    g.innerHTML =
+      '<div class="field f-name"><label for="n-'+r.id+'">Construct</label>'+
+        '<input id="n-'+r.id+'" data-k="name" type="text" placeholder="e.g. Pmyo-3::GFP"></div>'+
+      '<div class="field"><label for="p-'+r.id+'">Plasmid / clone</label>'+
+        '<input id="p-'+r.id+'" data-k="plasmid" type="text" placeholder="e.g. C13.1"></div>'+
+      '<div class="field"><label for="ro-'+r.id+'">Role</label>'+
+        '<select id="ro-'+r.id+'" data-k="role">'+
+          ROLES.map(x=>'<option value="'+x.v+'">'+x.label+'</option>').join("")+
+        '</select></div>'+
+      '<div class="field"><label for="c1-'+r.id+'">Stock C1</label>'+
+        '<input id="c1-'+r.id+'" data-k="c1" type="number" min="0" step="any" placeholder="ng/uL"></div>'+
+      '<div class="field"><label for="c2-'+r.id+'">Final C2</label>'+
+        '<input id="c2-'+r.id+'" data-k="c2" type="number" min="0" step="any" placeholder="ng/uL"></div>';
+    el.appendChild(g);
+
+    g.querySelector('[data-k=name]').value    = r.name;
+    g.querySelector('[data-k=plasmid]').value = r.plasmid;
+    g.querySelector('[data-k=role]').value    = r.role;
+    g.querySelector('[data-k=c1]').value      = r.c1;
+    g.querySelector('[data-k=c2]').value      = r.c2;
+
+    const foot = document.createElement("div");
+    foot.className = "row-foot";
+
+    const left = document.createElement("div");
+    left.style.display = "flex"; left.style.alignItems = "center"; left.style.gap = "12px";
+    left.style.flexWrap = "wrap"; left.style.minWidth = "0";
+    const chip = document.createElement("span");
+    chip.className = "chip " + r.role; chip.textContent = ROLE_LABEL[r.role];
+    const vol = document.createElement("span");
+    vol.className = "vol";
+    left.append(chip, vol);
+
+    const acts = document.createElement("div");
+    acts.className = "row-acts";
+    if(r.role === "carrier"){
+      const fill = document.createElement("button");
+      fill.type = "button"; fill.className = "tiny"; fill.dataset.act = "fill";
+      fill.textContent = "Fill to target";
+      fill.title = "Set this carrier's final concentration so the mix reaches the target total DNA";
+      acts.appendChild(fill);
+    }
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "quiet tiny"; del.dataset.act = "del";
+    del.textContent = "Remove";
+    del.setAttribute("aria-label", "Remove plasmid " + (i+1));
+    acts.appendChild(del);
+
+    foot.append(left, acts);
+    el.appendChild(foot);
+    rowsEl.appendChild(el);
+  });
+
+  paintVols(c);
+  paintLedger(c);
+  document.getElementById("f-count").value = state.rows.length;
+}
+
+/* Update only the per-row volume readouts, so typing never rebuilds the
+   inputs and never steals focus mid-keystroke. */
+function paintVols(c){
+  c.out.forEach(o=>{
+    const el = rowsEl.querySelector('.row[data-id="' + o.row.id + '"] .vol');
+    if(!el) return;
+    el.className = "vol";
+    if(o.err === "too-dilute"){
+      el.classList.add("err");
+      el.innerHTML = '<span class="lbl">Add</span>stock too dilute';
+    } else if(o.err === "zero-stock"){
+      el.classList.add("err");
+      el.innerHTML = '<span class="lbl">Add</span>stock must be above 0';
+    } else {
+      if(o.v1 != null && o.v1 > 0 && o.v1 < 0.5) el.classList.add("flag");
+      el.innerHTML = '<span class="lbl">Add</span>' + (o.v1==null ? "—" : fmt(o.v1) + " uL");
+    }
+  });
+}
+function repaint(){ const c = compute(); paintVols(c); paintLedger(c); }
+
+function paintLedger(c){
+  const dnaEl = document.getElementById("o-dna");
+  dnaEl.textContent = c.dna ? fmt(c.dna,1) : "—";
+  dnaEl.className = "v" + (c.dna ? (c.dna > c.target + 0.001 ? " bad" : (Math.abs(c.dna-c.target) < 0.001 ? " ok" : "")) : "");
+  document.getElementById("o-dna-n").textContent = "ng/uL of " + fmt(c.target,0) + " target";
+
+  document.getElementById("o-pv").textContent = c.pvol ? fmt(c.pvol) : "—";
+
+  const h2o = document.getElementById("o-h2o");
+  h2o.textContent = c.V2 > 0 ? fmt(c.water) : "—";
+  h2o.className = "v" + (c.water < -0.001 ? " bad" : "");
+
+  document.getElementById("o-tot").textContent = c.V2 ? fmt(c.V2) : "—";
+
+  /* notes */
+  const n = document.getElementById("notes");
+  n.textContent = "";
+  const add = (kind, html) => {
+    const d = document.createElement("div");
+    d.className = "note " + kind;
+    d.innerHTML = '<span class="ic">' + (kind==="bad"?"!":kind==="warn"?"*":"+") + '</span><span>' + html + '</span>';
+    n.appendChild(d);
+  };
+
+  const named = c.out.filter(o => o.c2 != null);
+  if(!named.length){
+    add("ok", "Enter a stock and final concentration for each plasmid to get its volume.");
+    return;
+  }
+  if(c.water < -0.001)
+    add("bad", "The plasmids alone come to <b>" + fmt(c.pvol) + " uL</b>, more than the " + fmt(c.V2) + " uL mix. Lower a final concentration, or use a more concentrated stock.");
+  if(c.dna > c.target + 0.001)
+    add("bad", "Total DNA is <b>" + fmt(c.dna,1) + " ng/uL</b>, above the " + fmt(c.target,0) + " ng/uL target.");
+  c.out.forEach(o=>{
+    if(o.err === "too-dilute")
+      add("bad", label(o.row) + ": final " + fmt(o.c2,1) + " ng/uL is higher than the " + fmt(o.c1,1) + " ng/uL stock. It cannot be reached without concentrating the prep.");
+  });
+  const tiny = c.out.filter(o => o.v1 != null && o.v1 > 0 && o.v1 < 0.5);
+  if(tiny.length)
+    add("warn", "Under 0.5 uL to pipette for " + tiny.map(o=>label(o.row)).join(", ") +
+      ". Consider a 1:10 intermediate dilution of the stock for a more accurate volume.");
+  if(!c.out.some(o=>o.row.role === "carrier"))
+    add("warn", "No carrier in the mix. Add an empty vector to bring the total to " + fmt(c.target,0) + " ng/uL if you are not already at target.");
+  if(Math.abs(c.dna - c.target) < 0.001 && c.water >= -0.001)
+    add("ok", "Mix is at the " + fmt(c.target,0) + " ng/uL target.");
+}
+
+const label = r => r.name || r.plasmid || ROLE_LABEL[r.role];
+
+/* ---- events ---- */
+rowsEl.addEventListener("input", e=>{
+  const k = e.target.dataset.k; if(!k) return;
+  const id = e.target.closest(".row").dataset.id;
+  const r = state.rows.find(x=>x.id===id); if(!r) return;
+  r[k] = e.target.value;
+  if(k !== "role") repaint();   /* role is handled on change, which re-renders */
+  save();
+});
+rowsEl.addEventListener("change", e=>{
+  if(e.target.dataset.k === "role"){ render(); save(); }
+});
+rowsEl.addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  const id = b.closest(".row").dataset.id;
+  if(b.dataset.act === "del"){
+    state.rows = state.rows.filter(x=>x.id!==id);
+    if(!state.rows.length) state.rows.push(blank("main"));
+  }
+  if(b.dataset.act === "fill"){
+    const c = compute();
+    const others = c.out.filter(o=>o.row.id!==id).reduce((s,o)=> s + (o.c2 ?? 0), 0);
+    const r = state.rows.find(x=>x.id===id);
+    const left = Math.max(0, (num(state.target) ?? 0) - others);
+    r.c2 = String(Math.round(left*100)/100);
+  }
+  render(); save();
+});
+
+document.getElementById("add").addEventListener("click", ()=>{
+  if(state.rows.length >= 12) return;
+  state.rows.push(blank("main")); render(); save();
+});
+document.getElementById("reset").addEventListener("click", ()=>{
+  state = {volume:20, target:100, rows:[blank("main"), blank("marker"), blank("carrier")]};
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  document.getElementById("f-vol").value = 20;
+  document.getElementById("f-target").value = 100;
+  render(); save();
+});
+document.getElementById("f-vol").addEventListener("input", e=>{ state.volume = e.target.value; repaint(); save(); });
+document.getElementById("f-target").addEventListener("input", e=>{ state.target = e.target.value; repaint(); save(); });
+document.getElementById("f-count").addEventListener("input", e=>{
+  let n = parseInt(e.target.value,10);
+  if(!Number.isFinite(n)) return;
+  n = Math.max(1, Math.min(12, n));
+  while(state.rows.length < n) state.rows.push(blank(state.rows.length===1 ? "marker" : "carrier"));
+  while(state.rows.length > n) state.rows.pop();
+  render(); save();
+});
+
+/* ---- copy ---- */
+document.getElementById("copy").addEventListener("click", async ()=>{
+  const c = compute();
+  const lines = [["Construct","Component","C1 (ng/uL)","C2 (ng/uL)","V2 (uL)","V1 (uL)","Role"].join("\t")];
+  c.out.forEach(o=>{
+    lines.push([
+      o.row.name || "", o.row.plasmid || "",
+      o.c1 ?? "", o.c2 ?? "", c.V2 || "",
+      o.v1 == null ? "" : fmt(o.v1),
+      ROLE_LABEL[o.row.role]
+    ].join("\t"));
+  });
+  lines.push(["H2O","-","-","-","-", fmt(c.water), ""].join("\t"));
+  lines.push(["","","","","Total:", fmt(c.V2), ""].join("\t"));
+  const text = lines.join("\n");
+  const st = document.getElementById("copy-status");
+  try{
+    await navigator.clipboard.writeText(text);
+    st.textContent = "Copied " + (c.out.length + 1) + " rows.";
+  }catch(err){
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:50%;left:50%;width:1px;height:1px;opacity:0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    st.textContent = "Press Cmd/Ctrl+C to copy.";
+    setTimeout(()=>ta.remove(), 8000);
+    return;
+  }
+  setTimeout(()=>{ st.textContent = ""; }, 3000);
+});
+
+/* ---- persistence (this browser only) ---- */
+const KEY = "dacr.injection.mix.v1";
+let timer = null;
+const statusEl = document.getElementById("save-status");
+
+function serialize(){
+  return {
+    volume: String(state.volume), target: String(state.target),
+    rows: state.rows.map(r=>({name:r.name, plasmid:r.plasmid, role:r.role, c1:String(r.c1), c2:String(r.c2)})),
+    updatedAt: new Date().toISOString()
+  };
+}
+function save(){
+  clearTimeout(timer);
+  timer = setTimeout(()=>{
+    try{
+      localStorage.setItem(KEY, JSON.stringify(serialize()));
+      statusEl.textContent = "Saved";
+      setTimeout(()=>{ if(statusEl.textContent==="Saved") statusEl.textContent=""; }, 2000);
+    }catch(err){
+      statusEl.textContent = "Not saved (storage unavailable)";
+    }
+  }, 500);
+}
+function restore(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(KEY) || "null"); }catch(e){ return; }
+  if(!d || !Array.isArray(d.rows) || !d.rows.length) return;
+  state.volume = d.volume ?? 20;
+  state.target = d.target ?? 100;
+  state.rows = d.rows.slice(0,12).map(r=>({
+    id:"r"+(++uid),
+    name: typeof r.name==="string" ? r.name : "",
+    plasmid: typeof r.plasmid==="string" ? r.plasmid : "",
+    role: ROLE_LABEL[r.role] ? r.role : "main",
+    c1: r.c1==null ? "" : String(r.c1),
+    c2: r.c2==null ? "" : String(r.c2)
+  }));
+  document.getElementById("f-vol").value = state.volume;
+  document.getElementById("f-target").value = state.target;
+}
+
+restore();
+render();
+</script>
+
+</body>
+</html>
